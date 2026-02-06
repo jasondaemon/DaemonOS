@@ -14,7 +14,6 @@ DaemonOS is a playful, browser‑based “operating system” interface. It’s 
 - **OS shell** in `site/os.js` manages windows, dock, menus, settings, and app loading
 - **Apps** are modular JS entrypoints defined in `site/apps/registry.json`
 - **Lazy loading** uses dynamic `import()` so apps load only when opened
-- **Optional local apps** can be loaded via the File System Access API (client‑side only)
 
 Key directories:
 - `site/index.html` — shell UI and CSP

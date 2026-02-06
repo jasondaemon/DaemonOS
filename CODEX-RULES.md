@@ -16,4 +16,3 @@
 ## App Model
 - Apps live under `site/apps/` and are registered in `site/apps/registry.json`.
 - Apps export `createApp(osAPI)` and return window content via DOM nodes.
-- Local app folders are opt-in and loaded through the File System Access API.

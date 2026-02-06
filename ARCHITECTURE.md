@@ -16,12 +16,12 @@ DaemonOS is a static, browser-based desktop experience served by a hardened Ngin
 - Apps register in `registry.json` with `id`, `title`, `category`, `description`, and `module`.
 - Modules export `createApp(osAPI)` and return `{ title, width, height, content }`.
 - Apps are loaded on-demand via dynamic `import()` to avoid preloading.
-- Optional local app folders can be added through the File System Access API. Files are read and loaded into blob URLs in-memory, without server interaction.
+ 
 
 ## Security Constraints
 - Static hosting only; no backend execution or proxying.
 - Strict CSP meta tag in `index.html` allows scripts only from `self` and `blob` for local apps.
-- Iframe-based browser app uses sandbox attributes and relies on the client browser for network access.
+- Browser app renders local pages from `site/apps/browser/pages/` and opens external sites in a new tab.
 
 ## UX Requirements
 - Early MacOS X-inspired dock centered at the bottom with hover zoom.

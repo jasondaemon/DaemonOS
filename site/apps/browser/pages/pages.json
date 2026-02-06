@@ -1,0 +1,9 @@
+{
+  "pages": [
+    {
+      "id": "home",
+      "title": "Home",
+      "path": "/apps/browser/pages/home.html"
+    }
+  ]
+}

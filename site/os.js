@@ -1,6 +1,5 @@
 const state = {
   registry: [],
-  localApps: [],
   windows: [],
   zIndex: 100,
   windowState: {},
@@ -15,7 +14,6 @@ const state = {
   activeCanvasId: null,
   activeAppId: null,
   appMenus: {},
-  appsFolderHint: "",
   trash: [],
   settings: {
     wallpaper: "aurora",
@@ -214,8 +212,6 @@ function setupMenu() {
     }
   });
 
-  const pickAppsFolder = document.getElementById("pick-apps-folder");
-  pickAppsFolder?.addEventListener("click", () => pickLocalAppsFolder());
   const aboutButton = document.getElementById("about-daemonos");
   aboutButton?.addEventListener("click", () => openAboutWindow());
   const settingsButton = document.getElementById("open-settings");
@@ -557,11 +553,10 @@ function startResize(event, windowNode, dir) {
 }
 
 function getAllApps() {
-  return [...state.registry, ...state.localApps];
+  return [...state.registry];
 }
 
 function normalizeModulePath(modulePath) {
-  if (modulePath.startsWith("blob:")) return modulePath;
   if (modulePath.startsWith("/")) return modulePath;
   if (modulePath.startsWith("./") || modulePath.startsWith("../")) return modulePath;
   return `/${modulePath}`;
@@ -878,26 +873,8 @@ function openSettingsWindow() {
   dockSection.appendChild(dockZoomLabel);
   dockSection.appendChild(dockZoom);
 
-  const appsSection = document.createElement("div");
-  const appsTitle = document.createElement("div");
-  appsTitle.className = "menu-title";
-  appsTitle.textContent = "Apps";
-  const pickButton = document.createElement("button");
-  pickButton.className = "menu-button";
-  pickButton.textContent = "Add Local Apps Folder";
-  pickButton.addEventListener("click", () => pickLocalAppsFolder());
-  const hint = document.createElement("div");
-  hint.className = "menu-hint";
-  hint.id = "apps-folder-hint";
-  hint.textContent = state.appsFolderHint;
-
-  appsSection.appendChild(appsTitle);
-  appsSection.appendChild(pickButton);
-  appsSection.appendChild(hint);
-
   content.appendChild(desktopSection);
   content.appendChild(dockSection);
-  content.appendChild(appsSection);
 
   createWindow({
     id: "settings",
@@ -1020,43 +997,6 @@ function cascadeWindows() {
   });
 }
 
-async function pickLocalAppsFolder() {
-  const hint = document.getElementById("apps-folder-hint");
-  if (!window.showDirectoryPicker) {
-    state.appsFolderHint = "Your browser does not support folder selection.";
-    if (hint) hint.textContent = state.appsFolderHint;
-    return;
-  }
-
-  try {
-    const handle = await window.showDirectoryPicker();
-    const newApps = [];
-    for await (const entry of handle.values()) {
-      if (entry.kind === "file" && entry.name.endsWith(".app.json")) {
-        const file = await entry.getFile();
-        const text = await file.text();
-        const config = JSON.parse(text);
-        const moduleFile = await handle.getFileHandle(config.module);
-        const moduleBlob = new Blob([await moduleFile.getFile().then((f) => f.text())], { type: "text/javascript" });
-        const moduleUrl = URL.createObjectURL(moduleBlob);
-        newApps.push({
-          id: config.id,
-          title: config.title,
-          category: config.category || "local",
-          description: config.description || "",
-          module: moduleUrl,
-        });
-      }
-    }
-    state.localApps = newApps;
-    state.appsFolderHint = `Loaded ${newApps.length} local app${newApps.length === 1 ? "" : "s"}.`;
-    if (hint) hint.textContent = state.appsFolderHint;
-    renderTaskSwitcher();
-  } catch (err) {
-    state.appsFolderHint = "Folder selection canceled.";
-    if (hint) hint.textContent = state.appsFolderHint;
-  }
-}
 
 function registerWindow(windowNode, title, meta) {
   state.windows.push({
@@ -1549,7 +1489,6 @@ function buildVirtualFS() {
     { key: "applications", label: "Applications" },
     { key: "games", label: "Games" },
     { key: "utilities", label: "Utilities" },
-    { key: "local", label: "Local Apps" },
   ];
 
   categories.forEach((category) => {
@@ -1560,7 +1499,7 @@ function buildVirtualFS() {
       children: [],
     };
 
-    const apps = getAllApps().filter((app) => (category.key === "local" ? app.category === "local" : app.category === category.key));
+    const apps = getAllApps().filter((app) => app.category === category.key);
     apps.forEach((app) => {
       folder.children.push({
         name: app.title,

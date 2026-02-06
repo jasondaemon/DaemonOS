@@ -180,3 +180,8 @@
 
 ## 2026-02-06 (Patch 53)
 - Moved `site` into the repo and updated docker compose default SITE_ROOT.
+
+## 2026-02-06 (Patch 54)
+- Removed local apps feature and tightened CSP/security headers.
+- Reworked Browser app to render local home pages and open searches in a new tab.
+- Added modular browser pages under `site/apps/browser/pages`.
