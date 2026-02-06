@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: https://esm.sh; style-src 'self'; img-src 'self' data:; frame-src https: http:; connect-src 'self' https://esm.sh; base-uri 'none'; form-action 'none'" />
+  <title>DaemonOS</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="desktop" class="desktop" role="application" aria-label="DaemonOS Desktop">
+    <div id="desktop-icons" class="desktop-icons" aria-label="Desktop"></div>
+    <div class="menu-bar" role="menubar">
+      <div class="menu-left" role="menu">
+        <button class="menu-item menu-button-ghost" id="menu-daemonos" aria-haspopup="true" aria-expanded="false">DaemonOS</button>
+        <div class="menu-apps" id="menu-apps" role="group" aria-label="App Menus"></div>
+      </div>
+      <div class="menu-center" aria-hidden="true"></div>
+      <div class="menu-right" role="menu">
+        <div class="menu-time" id="menu-time" aria-live="polite"></div>
+      </div>
+      <div class="menu-dropdown system-menu" id="banana-menu" role="menu" aria-label="System Menu">
+        <button id="about-daemonos">About DaemonOS</button>
+        <button id="open-settings">Settings</button>
+        <button id="system-reboot">Reboot</button>
+        <button id="system-shutdown">Shutdown</button>
+      </div>
+      <div class="banana-menu task-switcher" id="task-switcher" role="menu" aria-label="Task Switcher"></div>
+    </div>
+
+    <div id="windows" class="windows" aria-live="polite"></div>
+
+    <div class="dock" id="dock" role="toolbar" aria-label="Dock">
+      <div class="dock-track" id="dock-track"></div>
+      <div class="dock-minimized" id="dock-minimized" aria-label="Minimized Windows"></div>
+      <button class="dock-trash empty" id="dock-trash" aria-label="Trash" title="Trash">
+        <span class="trash-bin"></span>
+        <span class="trash-lid"></span>
+        <span class="trash-fill"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="context-menu" id="context-menu" role="menu" aria-hidden="true"></div>
+
+  <script src="os.js" type="module" defer></script>
+</body>
+</html>

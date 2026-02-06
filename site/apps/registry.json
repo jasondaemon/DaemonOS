@@ -1,0 +1,75 @@
+{
+  "version": "2026.02.06.7",
+  "apps": [
+    {
+      "id": "notepad",
+      "title": "Notepad",
+      "category": "applications",
+      "description": "A lightweight scratchpad that autosaves.",
+      "module": "/apps/notepad/notepad.js"
+    },
+    {
+      "id": "browser",
+      "title": "Web Browser",
+      "category": "applications",
+      "description": "Browse the web in a sandboxed window.",
+      "module": "/apps/browser/browser.js"
+    },
+    {
+      "id": "paint",
+      "title": "Paint",
+      "category": "applications",
+      "description": "Draw with brushes and color palettes.",
+      "module": "/apps/applications/paint/paint.js"
+    },
+    {
+      "id": "diagnostics",
+      "title": "Diagnostics",
+      "category": "utilities",
+      "description": "System and session readout.",
+      "module": "/apps/utilities/diagnostics/diagnostics.js"
+    },
+    {
+      "id": "settings",
+      "title": "Settings",
+      "category": "utilities",
+      "description": "DaemonOS preferences.",
+      "module": "/apps/utilities/settings/settings.js"
+    },
+    {
+      "id": "calculator",
+      "title": "Calculator",
+      "category": "utilities",
+      "description": "Basic calculator.",
+      "module": "/apps/utilities/calculator/calculator.js"
+    },
+    {
+      "id": "pong",
+      "title": "Pong",
+      "category": "games",
+      "description": "Classic paddle duel against the wall.",
+      "module": "/apps/games/pong/pong.js"
+    },
+    {
+      "id": "minesweeper",
+      "title": "Minesweeper",
+      "category": "games",
+      "description": "Clear the field without detonating mines.",
+      "module": "/apps/games/minesweeper/minesweeper.js"
+    },
+    {
+      "id": "frogger",
+      "title": "Frogger",
+      "category": "games",
+      "description": "Cross the lanes and reach the docks.",
+      "module": "/apps/games/frogger/frogger.js"
+    },
+    {
+      "id": "pineball",
+      "title": "Pineball",
+      "category": "games",
+      "description": "A neon pinball arcade with multiball.",
+      "module": "/apps/games/pineball/pineball.js"
+    }
+  ]
+}
