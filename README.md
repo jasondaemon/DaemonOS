@@ -2,6 +2,8 @@
 
 DaemonOS is a playful, browser‑based “operating system” interface. It’s built as a fun experiment in UI/UX, app modularity, and safe client‑side execution. There is no server‑side code and no interpreted user input — everything runs locally in the user’s browser.
 
+![DaemonOS Screenshot](images/screenshot.png)
+
 ## Purpose
 - A creative playground for desktop‑style UI experiments
 - A lightweight app shell for browser‑native “apps”
