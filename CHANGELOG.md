@@ -432,3 +432,14 @@
 
 ## 2026-02-07 (Patch 129)
 - Updated Frogger player sprite to match the dock icon style.
+
+## 2026-02-07 (Patch 133)
+- Added System Monitor widget with pressure/memory tracking and app controls.
+- Implemented ResourceTracker, performance monitor, and app lifecycle suspend/throttle hooks.
+- Integrated Spacefighter and Music Player with lifecycle + resource tracking.
+
+## 2026-02-07 (Patch 134)
+- Added per-app About panels with technical details and library notes.
+
+## 2026-02-07 (Patch 135)
+- Added GPL-3.0 licensing and documented it in the README.

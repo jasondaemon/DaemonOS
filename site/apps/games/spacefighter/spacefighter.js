@@ -1,6 +1,9 @@
-import { createGameSurface, startLoop } from "../shared/gameUtils.js";
+import { createGameSurface } from "../shared/gameUtils.js";
+import { createLoop } from "/core/appLifecycle.js";
+import { resourceTracker } from "/core/resourceTracker.js";
 
 export function createApp() {
+  const appId = "spacefighter";
   const controller = new AbortController();
   const { signal } = controller;
 
@@ -108,6 +111,8 @@ export function createApp() {
     if (Math.random() > 0.25) return;
     powerups.push({ x, y, type: "multishot", vy: 60 });
   };
+
+  let resourceTimer = 0;
 
   const update = (dt) => {
     if (!running) return;
@@ -220,6 +225,16 @@ export function createApp() {
       wave += 1;
       spawnWave();
     }
+    resourceTimer += dt;
+    if (resourceTimer > 0.6) {
+      resourceTracker.setAppTotal(
+        appId,
+        "entities",
+        (bullets.length + enemyBullets.length + enemies.length + powerups.length) * 64,
+        "Entity buffers",
+      );
+      resourceTimer = 0;
+    }
     updateStatus();
   };
 
@@ -297,18 +312,26 @@ export function createApp() {
     }
   }, { signal });
 
-  const stopLoop = startLoop({
+  const canvasToken = resourceTracker.claim(
+    appId,
+    "canvas",
+    view.baseWidth * view.baseHeight * 4,
+    "Game canvas",
+  );
+  const loop = createLoop(appId, {
     step: update,
     render: draw,
     isActive: () => content.isConnected,
   });
+  loop.start();
 
   const observer = new MutationObserver(() => {
     if (!content.isConnected) {
       observer.disconnect();
       controller.abort();
       resizeObserver.disconnect();
-      stopLoop();
+      loop.stop();
+      resourceTracker.release(canvasToken);
     }
   });
   observer.observe(document.body, { childList: true, subtree: true });
@@ -320,5 +343,16 @@ export function createApp() {
     width: 640,
     height: 560,
     content: wrapper,
+    onSuspend: () => {
+      loop.suspend();
+    },
+    onResume: () => {
+      loop.resume();
+    },
+    freeOptionalCaches: () => {
+      enemyBullets = [];
+      powerups = [];
+      resourceTracker.setAppTotal(appId, "entities", 0, "Entity buffers");
+    },
   };
 }

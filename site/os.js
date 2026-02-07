@@ -1,3 +1,7 @@
+import { perfMonitor } from "./core/perfMonitor.js";
+import { registerApp, unregisterApp, setFocusedApp } from "./core/appLifecycle.js";
+import { initSystemMonitor } from "./core/systemMonitor.js";
+
 const state = {
   registry: [],
   windows: [],
@@ -82,6 +86,8 @@ async function init() {
     if (state.settings.theme === "auto") applyTheme();
   }, 5 * 60 * 1000);
   setupMenu();
+  perfMonitor.start();
+  initSystemMonitor({ focusApp: focusAppById, closeApp: closeAppById });
   setupDock();
   setupClock();
   setupScreensaver();
@@ -747,7 +753,9 @@ function setupMenu() {
       !event.target.closest("#menu-daemonos") &&
       !event.target.closest("#menu-volume") &&
       !event.target.closest("#menu-fullscreen") &&
-      !event.target.closest("#menu-screensaver")
+      !event.target.closest("#menu-screensaver") &&
+      !event.target.closest("#system-monitor-widget") &&
+      !event.target.closest("#system-monitor-panel")
     ) {
       closeAllMenuDropdowns();
       if (volumeMenu) {
@@ -978,9 +986,40 @@ async function openApp(appId, options = {}) {
       minimized: options.minimized,
     });
     windowNode.dataset.appId = appId;
+    registerApp(appId, {
+      title: result.title || app.title,
+      windowNode,
+      hooks: {
+        onSuspend: result.onSuspend,
+        onResume: result.onResume,
+        freeOptionalCaches: result.freeOptionalCaches,
+      },
+    });
   } catch (err) {
     console.error("Failed to open app", err);
   }
+}
+
+function focusAppById(appId) {
+  const windowNode = document.querySelector(`.window[data-window-id='app-${appId}']`);
+  if (windowNode) {
+    restoreWindow(windowNode);
+    return;
+  }
+  openApp(appId);
+}
+
+function closeAppById(appId) {
+  const windowNode = document.querySelector(`.window[data-window-id='app-${appId}']`);
+  if (!windowNode) return;
+  const title = windowNode.querySelector(".window-title")?.textContent || appId;
+  windowNode.remove();
+  addToTrash({
+    id: windowNode.dataset.windowId || "",
+    title,
+    closedAt: Date.now(),
+  });
+  removeWindow(windowNode);
 }
 
 function createWindow({ id, title, width, height, content, minimized, meta }) {
@@ -1241,6 +1280,7 @@ function registerAppMenu(appId, menuConfig) {
 
 function setActiveApp(appId) {
   state.activeAppId = appId;
+  setFocusedApp(appId);
   renderMenuBar();
 }
 
@@ -1249,7 +1289,7 @@ function getDefaultMenus(appName) {
     {
       title: appName,
       items: [
-        { label: `About ${appName}`, disabled: true },
+        { label: `About ${appName}`, onClick: () => openAppAboutWindow(state.activeAppId) },
         { label: "Preferences", disabled: true },
       ],
     },
@@ -1314,11 +1354,16 @@ function renderMenuBar() {
     menu.items.forEach((item) => {
       const entry = document.createElement("button");
       entry.textContent = item.label;
+      const isAboutItem = typeof item.label === "string" && item.label.startsWith("About ");
+      if (isAboutItem) item.disabled = false;
       if (item.disabled) entry.disabled = true;
       if (item.type === "checkbox") {
         const check = document.createElement("span");
         check.className = `menu-check ${item.checked ? "checked" : ""}`;
         entry.appendChild(check);
+      }
+      if (isAboutItem && !item.onClick && !item.disabled) {
+        item.onClick = () => openAppAboutWindow(activeAppId);
       }
       entry.addEventListener("click", () => {
         if (item.disabled) return;
@@ -1408,6 +1453,203 @@ function openAboutWindow() {
     meta: { type: "about" },
     title: "About DaemonOS",
     width: 400,
+    height: 360,
+    content,
+  });
+}
+
+const appAboutDetails = {
+  notepad: {
+    libraries: ["None"],
+    details: [
+      "Autosaves to local storage on each edit.",
+      "Lightweight text area with persistence.",
+    ],
+  },
+  browser: {
+    libraries: ["None"],
+    details: [
+      "Local page renderer only (no remote iframes).",
+      "Search opens DuckDuckGo in a new browser tab.",
+      "Bookmarks and home page live under /apps/browser/pages.",
+    ],
+  },
+  paint: {
+    libraries: ["None"],
+    details: [
+      "Canvas-based drawing with brushes, size, and eraser.",
+      "Local-only rendering and state.",
+    ],
+  },
+  musicplayer: {
+    libraries: ["Web Audio API"],
+    details: [
+      "Playlist-driven playback from /site/media/music.",
+      "Multiple visualizer modes rendered on Canvas.",
+      "Client-side audio pipeline only.",
+    ],
+  },
+  diagnostics: {
+    libraries: ["None"],
+    details: [
+      "Reads browser/device capabilities and session stats.",
+      "No external telemetry.",
+    ],
+  },
+  settings: {
+    libraries: ["None"],
+    details: [
+      "Adjusts desktop theme, dock, and screensaver settings.",
+      "Persists preferences to local storage.",
+    ],
+  },
+  calculator: {
+    libraries: ["None"],
+    details: [
+      "Basic calculator with client-side state.",
+    ],
+  },
+  pong: {
+    libraries: ["None"],
+    details: [
+      "Canvas-based paddle game with progressive speed.",
+      "Local-only scoring and play state.",
+    ],
+  },
+  minesweeper: {
+    libraries: ["None"],
+    details: [
+      "Grid-based puzzle with multiple board sizes.",
+      "Shift-click flagging and modal loss state.",
+    ],
+  },
+  frogger: {
+    libraries: ["None"],
+    details: [
+      "Multi-level lane runner with lives and score.",
+      "Sound effects are local audio files.",
+    ],
+  },
+  pineball: {
+    libraries: ["Planck.js (Box2D)"],
+    details: [
+      "Physics-based pinball using a static playfield and joints.",
+      "Canvas-rendered neon table with scoring and ball saver.",
+    ],
+  },
+  racecar: {
+    libraries: ["None"],
+    details: [
+      "Retro obstacle dodging with increasing speed.",
+      "Client-side score and high score tracking.",
+    ],
+  },
+  connect4: {
+    libraries: ["None"],
+    details: [
+      "7x6 grid with animated drops and win highlighting.",
+      "Human vs CPU with difficulty levels.",
+    ],
+  },
+  snake: {
+    libraries: ["None"],
+    details: [
+      "Grid-based movement with wrap-around walls.",
+      "Food spawn logic avoids the snake body.",
+    ],
+  },
+  asteroids: {
+    libraries: ["None"],
+    details: [
+      "Vector-style ship with wrap-around and splitting asteroids.",
+      "Sound effects are local audio files.",
+    ],
+  },
+  spaceinvaders: {
+    libraries: ["None"],
+    details: [
+      "Marching invader grid with lives and shields.",
+      "Sound effects are local audio files.",
+    ],
+  },
+  spacefighter: {
+    libraries: ["None"],
+    details: [
+      "Bullet-hell shooter with multiple enemy patterns.",
+      "Difficulty affects fire rate, bullet speed, and health.",
+    ],
+  },
+  chess: {
+    libraries: ["None"],
+    details: [
+      "Client-side chess engine with multiple levels.",
+      "SVG piece themes and timed play option.",
+    ],
+  },
+  checkers: {
+    libraries: ["None"],
+    details: [
+      "Classic checkers with optional forced jumps.",
+      "CPU supports multi-jump sequences.",
+    ],
+  },
+};
+
+function openAppAboutWindow(appId) {
+  if (!appId) return;
+  const app = getAllApps().find((entry) => entry.id === appId);
+  if (!app) return;
+  const windowId = `about-${appId}`;
+  const existing = document.querySelector(`.window[data-window-id='${windowId}']`);
+  if (existing) {
+    restoreWindow(existing);
+    return;
+  }
+
+  const content = document.createElement("div");
+  content.className = "app-about-panel";
+
+  const header = document.createElement("div");
+  header.className = "app-about-header";
+  const icon = document.createElement("div");
+  icon.className = "app-about-icon";
+  icon.innerHTML = getWindowIconSvg(`app-${appId}`, app.title);
+  const title = document.createElement("div");
+  title.className = "app-about-title";
+  title.textContent = app.title;
+  const subtitle = document.createElement("div");
+  subtitle.className = "app-about-subtitle";
+  subtitle.textContent = app.description || "DaemonOS application";
+  header.append(icon, title, subtitle);
+
+  const detail = appAboutDetails[appId] || { libraries: ["None"], details: [] };
+  const libraries = document.createElement("div");
+  libraries.className = "app-about-section";
+  libraries.innerHTML = `<div class="app-about-label">Libraries</div><div>${detail.libraries.join(", ")}</div>`;
+
+  const details = document.createElement("div");
+  details.className = "app-about-section";
+  const detailList = detail.details.length
+    ? `<ul>${detail.details.map((item) => `<li>${item}</li>`).join("")}</ul>`
+    : "<div>No additional details.</div>";
+  details.innerHTML = `<div class="app-about-label">Technical Summary</div>${detailList}`;
+
+  const meta = document.createElement("div");
+  meta.className = "app-about-section";
+  meta.innerHTML = `
+    <div class="app-about-label">Module</div>
+    <div>${app.module}</div>
+    <div class="app-about-label">Build</div>
+    <div>${state.registryVersion || "n/a"}</div>
+  `;
+
+  content.append(header, libraries, details, meta);
+
+  createWindow({
+    id: windowId,
+    meta: { type: "about", appId },
+    title: `About ${app.title}`,
+    width: 420,
     height: 360,
     content,
   });
@@ -1781,6 +2023,9 @@ function removeWindow(windowNode) {
   saveSession();
   if (windowNode.dataset.appId && state.activeAppId === windowNode.dataset.appId) {
     setActiveApp(null);
+  }
+  if (windowNode.dataset.appId) {
+    unregisterApp(windowNode.dataset.appId);
   }
 }
 

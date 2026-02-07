@@ -9,10 +9,14 @@ DaemonOS is a playful, browser‑based “operating system” interface. It’s 
 - A lightweight app shell for browser‑native “apps”
 - A static, client‑only deployment that minimizes attack surface
 
+## License
+DaemonOS is licensed under the GNU General Public License v3.0 (GPL‑3.0). See `LICENSE`.
+
 ## Highlights
 - **Games**: Pong, Minesweeper, Frogger, Pineball (Planck.js), Racecar, Chess, Checkers, Connect 4, Snake, Asteroids, Space Invaders, Spacefighter.
 - **Music Player**: Winamp‑inspired playback with playlists and multiple visualizer modes.
 - **Screensavers**: Starfield, Aurora Lines, Matrix code rain, and Flying Toasters.
+- **System Monitor**: top‑bar memory/pressure widget with per‑app suspend controls.
 - **Desktop OS UX**: dock with tray launchers, menu bar with volume + fullscreen, window management, and theming.
 
 ## Architecture (High‑Level)
@@ -70,6 +74,10 @@ export function createApp(osAPI) {
 - Screensaver behavior is configurable in **Settings** (enable, timeout, style).
 - Global volume control in the menu bar affects all app audio.
 - Music playlists are defined by `site/media/music/playlist.json`.
+
+## System Monitor
+- The top‑bar widget provides estimated memory pressure and per‑app controls.
+- Details and integration guide: `docs/system-monitor.md`.
 
 ## Notes
 This is a hobby project and an experiment. Expect rapid iteration, playful UI changes, and occasional breaking changes.

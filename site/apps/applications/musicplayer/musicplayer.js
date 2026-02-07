@@ -1,4 +1,8 @@
+import { createLoop } from "/core/appLifecycle.js";
+import { resourceTracker } from "/core/resourceTracker.js";
+
 export function createApp() {
+  const appId = "musicplayer";
   const content = document.createElement("div");
   content.className = "musicplayer-app";
 
@@ -98,13 +102,15 @@ export function createApp() {
 
   let audioContext = null;
   let analyser = null;
-  let animationId = null;
+  let visualLoop = null;
+  let visualDraw = null;
   let playlistData = [];
   let currentIndex = -1;
   let shuffleEnabled = false;
   let repeatEnabled = false;
   let isPlaying = false;
   let visualMode = "bars";
+  let wasPlayingBeforeSuspend = false;
 
   const updateDisplay = () => {
     const trackEl = display.querySelector(".musicplayer-track");
@@ -139,6 +145,7 @@ export function createApp() {
     currentIndex = safeIndex;
     audio.src = track.file;
     audio.currentTime = 0;
+    resourceTracker.setAppTotal(appId, "audio", 6 * 1024 * 1024, "Decoded audio buffer");
     updateDisplay();
     setActiveItem();
   };
@@ -348,14 +355,19 @@ export function createApp() {
           });
         }
       }
-      animationId = requestAnimationFrame(draw);
     };
-    draw();
+    visualDraw = draw;
+    if (!visualLoop) {
+      visualLoop = createLoop(appId, {
+        render: () => visualDraw?.(),
+        isActive: () => content.isConnected,
+      });
+    }
+    visualLoop.start();
   };
 
   const stopVisualizer = () => {
-    if (animationId) cancelAnimationFrame(animationId);
-    animationId = null;
+    visualLoop?.stop();
     const ctx = visualizer.getContext("2d");
     ctx.clearRect(0, 0, visualizer.width, visualizer.height);
   };
@@ -379,6 +391,12 @@ export function createApp() {
     const rect = visualizer.getBoundingClientRect();
     visualizer.width = Math.max(1, Math.floor(rect.width));
     visualizer.height = Math.max(1, Math.floor(rect.height));
+    resourceTracker.setAppTotal(
+      appId,
+      "canvas",
+      visualizer.width * visualizer.height * 4,
+      "Visualizer canvas",
+    );
   });
   resizeObserver.observe(visualizer);
 
@@ -432,5 +450,23 @@ export function createApp() {
     width: 640,
     height: 520,
     content,
+    onSuspend: () => {
+      wasPlayingBeforeSuspend = isPlaying;
+      if (isPlaying) pausePlayback();
+      stopVisualizer();
+      audioContext?.suspend?.();
+    },
+    onResume: () => {
+      audioContext?.resume?.();
+      if (wasPlayingBeforeSuspend) startPlayback();
+    },
+    freeOptionalCaches: () => {
+      stopVisualizer();
+      if (!isPlaying && audioContext) {
+        audioContext.close();
+        audioContext = null;
+        analyser = null;
+      }
+    },
   };
 }
