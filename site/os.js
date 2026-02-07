@@ -20,8 +20,23 @@ const state = {
     dockSize: 72,
     dockZoom: 1.35,
     iconSize: 60,
+    trayIconSize: 40,
+    theme: "dark",
+    volume: 0.8,
+    screensaverEnabled: true,
+    screensaverTimeout: 3,
+    screensaverStyle: "stars",
   },
   openApps: new Set(),
+};
+
+const autoThemeState = {
+  lat: null,
+  lon: null,
+  sunrise: null,
+  sunset: null,
+  dateKey: null,
+  geolocationTried: false,
 };
 
 const wallpaperOptions = [
@@ -33,10 +48,15 @@ const wallpaperOptions = [
 
 const dockItems = [
   { id: "file-browser", label: "Files", iconClass: "dock-glyph--file", action: () => openFileBrowser() },
-  { id: "applications", label: "Applications", iconClass: "dock-glyph--apps", action: () => openCategoryWindow("applications") },
-  { id: "games", label: "Games", iconClass: "dock-glyph--games", action: () => openCategoryWindow("games") },
-  { id: "utilities", label: "Utilities", iconClass: "dock-glyph--utilities", action: () => openCategoryWindow("utilities") },
+  { id: "applications", label: "Applications", iconClass: "dock-glyph--apps", action: (button) => toggleDockTray("applications", button) },
+  { id: "games", label: "Games", iconClass: "dock-glyph--games", action: (button) => toggleDockTray("games", button) },
+  { id: "utilities", label: "Utilities", iconClass: "dock-glyph--utilities", action: (button) => toggleDockTray("utilities", button) },
 ];
+
+let dockTrayState = {
+  category: null,
+  button: null,
+};
 
 const osAPI = {
   openApp,
@@ -57,9 +77,14 @@ async function init() {
   loadDesktopAliases();
   renderWallpaperOptions();
   applySettings();
+  requestAutoThemeLocation();
+  setInterval(() => {
+    if (state.settings.theme === "auto") applyTheme();
+  }, 5 * 60 * 1000);
   setupMenu();
   setupDock();
   setupClock();
+  setupScreensaver();
   await loadRegistry();
   setupTrash();
   setupContextMenu();
@@ -156,8 +181,370 @@ function applySettings() {
   document.documentElement.style.setProperty("--dock-size", `${state.settings.dockSize}px`);
   document.documentElement.style.setProperty("--dock-zoom", state.settings.dockZoom);
   document.documentElement.style.setProperty("--icon-size", `${state.settings.iconSize}px`);
+  document.documentElement.style.setProperty("--tray-icon-size", `${state.settings.trayIconSize}px`);
+  document.documentElement.style.setProperty("--tray-gap", `${Math.max(8, Math.round(state.settings.trayIconSize * 0.35))}px`);
   const iconSize = document.getElementById("icon-size");
   if (iconSize) iconSize.value = String(state.settings.iconSize);
+  const trayIconSize = document.getElementById("tray-icon-size");
+  if (trayIconSize) trayIconSize.value = String(state.settings.trayIconSize);
+  applyTheme();
+  applyGlobalVolume();
+  applyScreensaverSettings();
+}
+
+function applyScreensaverSettings() {
+  const saver = document.getElementById("screensaver");
+  if (!saver) return;
+  saver.dataset.style = state.settings.screensaverStyle || "stars";
+  if (saver.dataset.style === "toasters") {
+    saver.style.background = "#000";
+  } else {
+    saver.style.background = "";
+  }
+}
+
+function setupScreensaver() {
+  const saver = document.getElementById("screensaver");
+  if (!saver) return;
+  const matrixCanvas = document.getElementById("screensaver-matrix-canvas");
+  const matrixCtx = matrixCanvas?.getContext("2d");
+  const toasterCanvas = document.getElementById("screensaver-toaster-canvas");
+  const toasterCtx = toasterCanvas?.getContext("2d");
+  const matrixState = {
+    running: false,
+    columns: [],
+    rafId: null,
+    lastTime: 0,
+    chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*+-/\\アイウエオカキクケコサシスセソタチツテトナニヌネノマミムメモヤユヨラリルレロワヲン",
+  };
+  const toasterState = {
+    running: false,
+    toasters: [],
+    rafId: null,
+    lastTime: 0,
+  };
+
+  const resizeMatrix = () => {
+    if (!matrixCanvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = saver.getBoundingClientRect();
+    matrixCanvas.width = Math.floor(rect.width * dpr);
+    matrixCanvas.height = Math.floor(rect.height * dpr);
+    matrixCanvas.style.width = `${rect.width}px`;
+    matrixCanvas.style.height = `${rect.height}px`;
+    if (!matrixCtx) return;
+    matrixCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const fontSize = 20;
+    const columns = Math.floor(rect.width / (fontSize * 0.4));
+    matrixState.columns = Array.from({ length: columns }).map(() => ({
+      y: Math.random() * rect.height,
+      speed: 60 + Math.random() * 160,
+      trail: 14 + Math.floor(Math.random() * 20),
+    }));
+  };
+
+  const drawMatrix = (time) => {
+    if (!matrixCtx || !matrixCanvas) return;
+    const ctx = matrixCtx;
+    const rect = saver.getBoundingClientRect();
+    const fontSize = 20;
+    const cols = matrixState.columns.length;
+    const dt = matrixState.lastTime ? (time - matrixState.lastTime) / 1000 : 0.016;
+    matrixState.lastTime = time;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+    ctx.fillRect(0, 0, rect.width, rect.height);
+    ctx.font = `${fontSize}px 'Courier New', monospace`;
+    ctx.textBaseline = "top";
+    for (let i = 0; i < cols; i += 1) {
+      const column = matrixState.columns[i];
+      column.y += column.speed * dt;
+      if (column.y > rect.height + column.trail * fontSize) {
+        column.y = -Math.random() * rect.height * 0.5;
+        column.speed = 40 + Math.random() * 120;
+        column.trail = 10 + Math.floor(Math.random() * 15);
+      }
+      for (let j = 0; j < column.trail; j += 1) {
+        const char = matrixState.chars[Math.floor(Math.random() * matrixState.chars.length)];
+        const x = i * fontSize;
+        const y = column.y - j * fontSize;
+        if (y < 0 || y > rect.height) continue;
+        const alpha = 1 - j / column.trail;
+        const isHead = j === 0;
+        ctx.fillStyle = isHead ? `rgba(200, 255, 200, ${alpha})` : `rgba(0, 255, 140, ${alpha})`;
+        ctx.fillText(char, x, y);
+      }
+    }
+  };
+
+  const startMatrix = () => {
+    if (matrixState.running) return;
+    matrixState.running = true;
+    resizeMatrix();
+    const loop = (time) => {
+      if (!matrixState.running) return;
+      drawMatrix(time);
+      matrixState.rafId = requestAnimationFrame(loop);
+    };
+    matrixState.rafId = requestAnimationFrame(loop);
+  };
+
+  const stopMatrix = () => {
+    matrixState.running = false;
+    if (matrixState.rafId) cancelAnimationFrame(matrixState.rafId);
+    matrixState.rafId = null;
+    matrixState.lastTime = 0;
+    if (matrixCtx && matrixCanvas) {
+      matrixCtx.clearRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+    }
+  };
+
+  const resizeToasters = () => {
+    if (!toasterCanvas || !toasterCtx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = saver.getBoundingClientRect();
+    toasterCanvas.width = Math.floor(rect.width * dpr);
+    toasterCanvas.height = Math.floor(rect.height * dpr);
+    toasterCanvas.style.width = `${rect.width}px`;
+    toasterCanvas.style.height = `${rect.height}px`;
+    toasterCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const count = Math.max(10, Math.floor(rect.width / 120));
+    toasterState.toasters = Array.from({ length: count }).map(() => ({
+      x: rect.width + Math.random() * rect.width,
+      y: Math.random() * rect.height,
+      vx: -(60 + Math.random() * 140),
+      vy: 20 + Math.random() * 60,
+      scale: 0.6 + Math.random() * 0.6,
+      wingPhase: Math.random() * Math.PI * 2,
+      wingSpeed: 3 + Math.random() * 3,
+      toast: Math.random() > 0.45,
+    }));
+  };
+
+  const drawToaster = (ctx, toaster, dt, rect) => {
+    const wingFlap = Math.sin(toaster.wingPhase) * 0.6;
+    const bodyW = 60 * toaster.scale;
+    const bodyH = 36 * toaster.scale;
+    const wingW = 28 * toaster.scale;
+    const wingH = 16 * toaster.scale;
+    const slotH = 8 * toaster.scale;
+
+    toaster.x += toaster.vx * dt;
+    toaster.y += toaster.vy * dt;
+    toaster.wingPhase += toaster.wingSpeed * dt;
+
+    if (toaster.x < -bodyW - 40) {
+      toaster.x = rect.width + Math.random() * rect.width * 0.4;
+      toaster.y = Math.random() * rect.height * 0.8;
+      toaster.vx = -(60 + Math.random() * 140);
+      toaster.vy = 20 + Math.random() * 60;
+      toaster.scale = 0.6 + Math.random() * 0.6;
+      toaster.toast = Math.random() > 0.45;
+    }
+    if (toaster.y > rect.height + 80) {
+      toaster.y = -80;
+    }
+
+    ctx.save();
+    ctx.translate(toaster.x, toaster.y);
+    ctx.rotate(-0.1);
+    ctx.globalAlpha = 0.95;
+
+    // Wings
+    ctx.fillStyle = "#f3f3f3";
+    ctx.strokeStyle = "rgba(180,180,180,0.6)";
+    ctx.lineWidth = 1;
+    ctx.save();
+    ctx.translate(-bodyW * 0.35, bodyH * 0.2);
+    ctx.rotate(-wingFlap);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-wingW, -wingH * 0.4);
+    ctx.lineTo(-wingW * 0.6, wingH);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(bodyW * 0.35, bodyH * 0.2);
+    ctx.rotate(wingFlap);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(wingW, -wingH * 0.4);
+    ctx.lineTo(wingW * 0.6, wingH);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // Body
+    ctx.fillStyle = "#cfcfcf";
+    ctx.strokeStyle = "rgba(80,80,80,0.8)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(-bodyW / 2, -bodyH / 2, bodyW, bodyH, 10 * toaster.scale);
+    ctx.fill();
+    ctx.stroke();
+
+    // Slot
+    ctx.fillStyle = "#3b3b3b";
+    ctx.beginPath();
+    ctx.roundRect(-bodyW * 0.3, -bodyH * 0.15, bodyW * 0.6, slotH, 3 * toaster.scale);
+    ctx.fill();
+
+    // Toast
+    if (toaster.toast) {
+      ctx.fillStyle = "#f4c17a";
+      ctx.strokeStyle = "#c48b43";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(-bodyW * 0.18, -bodyH * 0.35, bodyW * 0.36, bodyH * 0.4, 6 * toaster.scale);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  };
+
+  const startToasters = () => {
+    if (toasterState.running) return;
+    toasterState.running = true;
+    resizeToasters();
+    const loop = (time) => {
+      if (!toasterState.running || !toasterCtx || !toasterCanvas) return;
+      const rect = saver.getBoundingClientRect();
+      const dt = toasterState.lastTime ? (time - toasterState.lastTime) / 1000 : 0.016;
+      toasterState.lastTime = time;
+      toasterCtx.fillStyle = "rgba(0, 0, 0, 0.6)";
+      toasterCtx.fillRect(0, 0, rect.width, rect.height);
+      toasterState.toasters.forEach((toaster) => drawToaster(toasterCtx, toaster, dt, rect));
+      toasterState.rafId = requestAnimationFrame(loop);
+    };
+    toasterState.rafId = requestAnimationFrame(loop);
+  };
+
+  const stopToasters = () => {
+    toasterState.running = false;
+    if (toasterState.rafId) cancelAnimationFrame(toasterState.rafId);
+    toasterState.rafId = null;
+    toasterState.lastTime = 0;
+    if (toasterCtx && toasterCanvas) {
+      toasterCtx.clearRect(0, 0, toasterCanvas.width, toasterCanvas.height);
+    }
+  };
+
+  let idleTimer = null;
+  let active = false;
+
+  const hide = () => {
+    if (!active) return;
+    active = false;
+    saver.classList.remove("active");
+    saver.setAttribute("aria-hidden", "true");
+    stopMatrix();
+    stopToasters();
+  };
+
+  const show = () => {
+    if (active || !state.settings.screensaverEnabled) return;
+    active = true;
+    applyScreensaverSettings();
+    saver.classList.add("active");
+    saver.setAttribute("aria-hidden", "false");
+    if (saver.dataset.style === "matrix") startMatrix();
+    if (saver.dataset.style === "toasters") startToasters();
+  };
+
+  const resetTimer = () => {
+    if (idleTimer) clearTimeout(idleTimer);
+    if (active) hide();
+    if (!state.settings.screensaverEnabled) return;
+    const minutes = Math.max(1, Number(state.settings.screensaverTimeout || 3));
+    idleTimer = setTimeout(show, minutes * 60 * 1000);
+  };
+
+  const onActivity = () => resetTimer();
+  ["mousemove", "mousedown", "keydown", "touchstart", "wheel"].forEach((eventName) => {
+    document.addEventListener(eventName, onActivity, { passive: true });
+  });
+
+  saver.addEventListener("click", hide);
+  document.addEventListener("keydown", hide);
+
+  window.__daemonosScreensaver = {
+    show,
+    hide,
+    reset: resetTimer,
+    restartMatrix: () => {
+      stopMatrix();
+      if (saver.dataset.style === "matrix" && saver.classList.contains("active")) {
+        startMatrix();
+      }
+    },
+    restartToasters: () => {
+      stopToasters();
+      if (saver.dataset.style === "toasters" && saver.classList.contains("active")) {
+        startToasters();
+      }
+    },
+  };
+
+  resetTimer();
+}
+
+function applyGlobalVolume() {
+  const level = Math.max(0, Math.min(1, Number(state.settings.volume ?? 0.8)));
+  window.__daemonosVolume = level;
+  const registerMedia = (media) => {
+    if (!media) return;
+    if (!window.__daemonosMedia) window.__daemonosMedia = new Set();
+    window.__daemonosMedia.add(media);
+    if (media.__daemonosBaseVolume == null) {
+      media.__daemonosBaseVolume = media.volume ?? 1;
+    }
+  };
+
+  if (!window.__daemonosAudioPatched) {
+    const NativeAudio = window.Audio;
+    window.Audio = function (...args) {
+      const audio = new NativeAudio(...args);
+      registerMedia(audio);
+      return audio;
+    };
+    window.Audio.prototype = NativeAudio.prototype;
+    window.__daemonosAudioPatched = true;
+  }
+
+  if (!HTMLMediaElement.prototype.__daemonosPatched) {
+    const originalPlay = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function (...args) {
+      registerMedia(this);
+      if (this.__daemonosBaseVolume == null) {
+        this.__daemonosBaseVolume = this.volume ?? 1;
+      }
+      this.volume = this.__daemonosBaseVolume * (window.__daemonosVolume ?? 1);
+      return originalPlay.apply(this, args);
+    };
+    HTMLMediaElement.prototype.__daemonosPatched = true;
+  }
+  document.querySelectorAll("audio,video").forEach((media) => registerMedia(media));
+  if (window.__daemonosMedia) {
+    window.__daemonosMedia.forEach((media) => {
+      if (media.__daemonosBaseVolume == null) {
+        media.__daemonosBaseVolume = media.volume ?? 1;
+      }
+      media.volume = media.__daemonosBaseVolume * level;
+    });
+  }
+  const slider = document.getElementById("menu-volume-range");
+  if (slider) slider.value = String(Math.round(level * 100));
+  const icon = document.getElementById("menu-volume-icon");
+  if (icon) {
+    if (level === 0) icon.textContent = "🔇";
+    else if (level < 0.4) icon.textContent = "🔈";
+    else if (level < 0.7) icon.textContent = "🔉";
+    else icon.textContent = "🔊";
+  }
 }
 
 function renderWallpaperOptions() {
@@ -180,9 +567,99 @@ function renderWallpaperOptions() {
   });
 }
 
+function applyTheme() {
+  const mode = state.settings.theme || "dark";
+  const resolved = mode === "auto" ? resolveAutoTheme() : mode;
+  document.documentElement.dataset.theme = resolved;
+}
+
+function resolveAutoTheme() {
+  const now = new Date();
+  const key = now.toISOString().slice(0, 10);
+  if (autoThemeState.dateKey !== key) {
+    autoThemeState.dateKey = key;
+    if (autoThemeState.lat != null && autoThemeState.lon != null) {
+      const times = getSunTimes(now, autoThemeState.lat, autoThemeState.lon);
+      autoThemeState.sunrise = times.sunrise;
+      autoThemeState.sunset = times.sunset;
+    }
+  }
+
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  if (autoThemeState.sunrise != null && autoThemeState.sunset != null) {
+    return minutes >= autoThemeState.sunrise && minutes < autoThemeState.sunset ? "light" : "dark";
+  }
+  return minutes >= 7 * 60 && minutes < 19 * 60 ? "light" : "dark";
+}
+
+function requestAutoThemeLocation() {
+  if (autoThemeState.geolocationTried) return;
+  autoThemeState.geolocationTried = true;
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      autoThemeState.lat = position.coords.latitude;
+      autoThemeState.lon = position.coords.longitude;
+      const now = new Date();
+      autoThemeState.dateKey = now.toISOString().slice(0, 10);
+      const times = getSunTimes(now, autoThemeState.lat, autoThemeState.lon);
+      autoThemeState.sunrise = times.sunrise;
+      autoThemeState.sunset = times.sunset;
+      applyTheme();
+    },
+    () => {},
+    { maximumAge: 6 * 60 * 60 * 1000, timeout: 4000 }
+  );
+}
+
+function getSunTimes(date, lat, lon) {
+  const zenith = 90.833;
+  const dayOfYear = Math.floor((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(date.getFullYear(), 0, 0)) / 86400000);
+  const lngHour = lon / 15;
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const toDeg = (rad) => (rad * 180) / Math.PI;
+
+  const calcTime = (isRise) => {
+    const t = dayOfYear + ((isRise ? 6 : 18) - lngHour) / 24;
+    const M = 0.9856 * t - 3.289;
+    let L = M + 1.916 * Math.sin(toRad(M)) + 0.02 * Math.sin(toRad(2 * M)) + 282.634;
+    L = (L + 360) % 360;
+    let RA = toDeg(Math.atan(0.91764 * Math.tan(toRad(L))));
+    RA = (RA + 360) % 360;
+    const Lquadrant = Math.floor(L / 90) * 90;
+    const RAquadrant = Math.floor(RA / 90) * 90;
+    RA = (RA + (Lquadrant - RAquadrant)) / 15;
+    const sinDec = 0.39782 * Math.sin(toRad(L));
+    const cosDec = Math.cos(Math.asin(sinDec));
+    const cosH =
+      (Math.cos(toRad(zenith)) - sinDec * Math.sin(toRad(lat))) / (cosDec * Math.cos(toRad(lat)));
+    if (cosH > 1 || cosH < -1) return null;
+    let H = isRise ? 360 - toDeg(Math.acos(cosH)) : toDeg(Math.acos(cosH));
+    H /= 15;
+    const T = H + RA - 0.06571 * t - 6.622;
+    let UT = T - lngHour;
+    UT = (UT + 24) % 24;
+    const offsetMinutes = -date.getTimezoneOffset();
+    let minutes = UT * 60 + offsetMinutes;
+    minutes = (minutes + 1440) % 1440;
+    return minutes;
+  };
+
+  return {
+    sunrise: calcTime(true),
+    sunset: calcTime(false),
+  };
+}
+
 function setupMenu() {
   const bananaMenu = document.getElementById("banana-menu");
   const daemonosMenu = document.getElementById("menu-daemonos");
+  const volumeButton = document.getElementById("menu-volume");
+  const volumeMenu = document.getElementById("volume-menu");
+  const volumeRange = document.getElementById("menu-volume-range");
+  const fullscreenButton = document.getElementById("menu-fullscreen");
+  const fullscreenIcon = document.getElementById("menu-fullscreen-icon");
+  const screensaverButton = document.getElementById("menu-screensaver");
   if (!daemonosMenu || !bananaMenu) return;
 
   daemonosMenu.addEventListener("click", () => {
@@ -197,6 +674,67 @@ function setupMenu() {
     }
   });
 
+  if (volumeButton && volumeMenu) {
+    volumeButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const rect = volumeButton.getBoundingClientRect();
+      volumeMenu.style.left = `${Math.max(12, rect.left)}px`;
+      volumeMenu.style.right = "auto";
+      volumeMenu.classList.toggle("open");
+      volumeButton.setAttribute("aria-expanded", volumeMenu.classList.contains("open"));
+    });
+  }
+
+  const updateFullscreenIcon = () => {
+    const isFull = Boolean(document.fullscreenElement);
+    if (fullscreenIcon) fullscreenIcon.textContent = isFull ? "⤡" : "⤢";
+    if (fullscreenButton) fullscreenButton.setAttribute("aria-label", isFull ? "Exit Fullscreen" : "Enter Fullscreen");
+  };
+
+  if (fullscreenButton) {
+    fullscreenButton.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        } else {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch {
+        // ignore fullscreen errors
+      } finally {
+        updateFullscreenIcon();
+      }
+    });
+  }
+
+  document.addEventListener("fullscreenchange", () => {
+    updateFullscreenIcon();
+    ensureWindowsInView();
+  });
+  updateFullscreenIcon();
+
+  if (screensaverButton) {
+    screensaverButton.addEventListener("click", () => {
+      const saver = window.__daemonosScreensaver;
+      if (!saver) return;
+      const saverEl = document.getElementById("screensaver");
+      if (saverEl?.classList.contains("active")) {
+        saver.hide();
+      } else {
+        saver.show();
+      }
+    });
+  }
+
+  if (volumeRange) {
+    volumeRange.addEventListener("input", () => {
+      state.settings.volume = Number(volumeRange.value) / 100;
+      applyGlobalVolume();
+      saveSettings();
+    });
+  }
+
   const taskSwitcher = document.getElementById("task-switcher");
   if (taskSwitcher) {
     taskSwitcher.classList.remove("open");
@@ -206,9 +744,16 @@ function setupMenu() {
     if (
       !event.target.closest(".menu-dropdown") &&
       !event.target.closest(".menu-app-button") &&
-      !event.target.closest("#menu-daemonos")
+      !event.target.closest("#menu-daemonos") &&
+      !event.target.closest("#menu-volume") &&
+      !event.target.closest("#menu-fullscreen") &&
+      !event.target.closest("#menu-screensaver")
     ) {
       closeAllMenuDropdowns();
+      if (volumeMenu) {
+        volumeMenu.classList.remove("open");
+        volumeButton?.setAttribute("aria-expanded", "false");
+      }
     }
   });
 
@@ -230,7 +775,10 @@ function setupDock() {
     const button = document.createElement("button");
     button.className = "dock-icon";
     button.dataset.id = item.id;
-    button.addEventListener("click", () => item.action());
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      item.action(button);
+    });
 
     const glyph = document.createElement("div");
     glyph.className = `dock-glyph ${item.iconClass}`;
@@ -260,6 +808,13 @@ function setupDock() {
       icon.style.transform = "scale(1)";
     });
   });
+
+  ensureDockTray();
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#dock-tray") && !event.target.closest(".dock-icon")) {
+      closeDockTray();
+    }
+  });
 }
 
 function setupClock() {
@@ -281,12 +836,74 @@ function setupClock() {
   setInterval(update, 1000 * 30);
 }
 
+function ensureDockTray() {
+  let tray = document.getElementById("dock-tray");
+  if (tray) return tray;
+  tray = document.createElement("div");
+  tray.id = "dock-tray";
+  tray.className = "dock-tray";
+  document.body.appendChild(tray);
+  return tray;
+}
+
+function closeDockTray() {
+  const tray = document.getElementById("dock-tray");
+  if (tray) {
+    tray.classList.remove("open");
+    tray.innerHTML = "";
+  }
+  if (dockTrayState.button) {
+    dockTrayState.button.classList.remove("tray-open");
+  }
+  dockTrayState = { category: null, button: null };
+}
+
+function toggleDockTray(category, button) {
+  const tray = ensureDockTray();
+  if (dockTrayState.category === category && tray.classList.contains("open")) {
+    closeDockTray();
+    return;
+  }
+
+  const apps = getAllApps().filter((app) => app.category === category);
+  tray.innerHTML = "";
+  const grid = document.createElement("div");
+  grid.className = "dock-tray-grid";
+  apps.forEach((app) => {
+    const item = document.createElement("button");
+    item.className = "dock-tray-item";
+    item.innerHTML = `
+      <div class="dock-tray-icon">${getAppIconSvg(app)}</div>
+      <div class="dock-tray-label">${app.title}</div>
+    `;
+    item.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closeDockTray();
+      openApp(app.id);
+    });
+    grid.appendChild(item);
+  });
+  tray.appendChild(grid);
+
+  const rect = button.getBoundingClientRect();
+  tray.style.left = `${rect.left + rect.width / 2}px`;
+  tray.style.bottom = `${window.innerHeight - rect.top + 12}px`;
+  tray.classList.add("open");
+
+  if (dockTrayState.button && dockTrayState.button !== button) {
+    dockTrayState.button.classList.remove("tray-open");
+  }
+  button.classList.add("tray-open");
+  dockTrayState = { category, button };
+}
+
 async function loadRegistry() {
   try {
     const response = await fetch("apps/registry.json", { cache: "no-store" });
     const data = await response.json();
     state.registry = data.apps || [];
     state.registryVersion = data.version || data.build || "";
+    window.daemonosRegistryVersion = state.registryVersion;
   } catch (err) {
     console.error("Failed to load app registry", err);
   }
@@ -374,10 +991,18 @@ function createWindow({ id, title, width, height, content, minimized, meta }) {
   windowNode.className = "window";
   if (id) windowNode.dataset.windowId = id;
   const saved = id ? state.windowState[id] : null;
-  const startLeft = saved?.left ?? 80 + state.windows.length * 24;
-  const startTop = saved?.top ?? 60 + state.windows.length * 18;
-  const startWidth = saved?.width ?? width;
-  const startHeight = saved?.height ?? height;
+  const baseLeft = saved?.left ?? 80 + state.windows.length * 24;
+  const baseTop = saved?.top ?? 60 + state.windows.length * 18;
+  const baseWidth = saved?.width ?? width;
+  const baseHeight = saved?.height ?? height;
+  const padding = 24;
+  const menuHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--menu-height")) || 36;
+  const maxWidth = Math.max(360, window.innerWidth - padding * 2);
+  const maxHeight = Math.max(260, window.innerHeight - menuHeight - padding * 2);
+  const startWidth = Math.min(baseWidth, maxWidth);
+  const startHeight = Math.min(baseHeight, maxHeight);
+  const startLeft = Math.min(Math.max(baseLeft, padding), window.innerWidth - startWidth - padding);
+  const startTop = Math.min(Math.max(baseTop, menuHeight + padding), window.innerHeight - startHeight - padding);
   windowNode.style.width = `${startWidth}px`;
   windowNode.style.height = `${startHeight}px`;
   windowNode.style.left = `${startLeft}px`;
@@ -826,9 +1451,30 @@ function openSettingsWindow() {
     saveSettings();
   });
 
+  const themeLabel = document.createElement("label");
+  themeLabel.className = "menu-label";
+  themeLabel.textContent = "Appearance";
+  const themeSelect = document.createElement("select");
+  themeSelect.className = "menu-select";
+  ["dark", "light", "auto"].forEach((mode) => {
+    const option = document.createElement("option");
+    option.value = mode;
+    option.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+    themeSelect.appendChild(option);
+  });
+  themeSelect.value = state.settings.theme || "dark";
+  themeSelect.addEventListener("change", () => {
+    state.settings.theme = themeSelect.value;
+    applySettings();
+    saveSettings();
+    if (state.settings.theme === "auto") requestAutoThemeLocation();
+  });
+
   desktopSection.appendChild(desktopTitle);
   desktopSection.appendChild(wallpaperLabel);
   desktopSection.appendChild(wallpaperOptions);
+  desktopSection.appendChild(themeLabel);
+  desktopSection.appendChild(themeSelect);
   desktopSection.appendChild(iconSizeLabel);
   desktopSection.appendChild(iconSize);
 
@@ -867,14 +1513,101 @@ function openSettingsWindow() {
     saveSettings();
   });
 
+  const trayIconSizeLabel = document.createElement("label");
+  trayIconSizeLabel.className = "menu-label";
+  trayIconSizeLabel.textContent = "Tray Icon Size";
+  const trayIconSize = document.createElement("input");
+  trayIconSize.id = "tray-icon-size";
+  trayIconSize.type = "range";
+  trayIconSize.min = "28";
+  trayIconSize.max = "72";
+  trayIconSize.value = String(state.settings.trayIconSize);
+  trayIconSize.addEventListener("input", (event) => {
+    const value = Number(event.target.value);
+    state.settings.trayIconSize = value;
+    applySettings();
+    saveSettings();
+  });
+
   dockSection.appendChild(dockTitle);
   dockSection.appendChild(dockSizeLabel);
   dockSection.appendChild(dockSize);
   dockSection.appendChild(dockZoomLabel);
   dockSection.appendChild(dockZoom);
+  dockSection.appendChild(trayIconSizeLabel);
+  dockSection.appendChild(trayIconSize);
+
+  const saverSection = document.createElement("div");
+  const saverTitle = document.createElement("div");
+  saverTitle.className = "menu-title";
+  saverTitle.textContent = "Screensaver";
+
+  const saverToggleLabel = document.createElement("label");
+  saverToggleLabel.className = "menu-label";
+  saverToggleLabel.textContent = "Enabled";
+  const saverToggle = document.createElement("input");
+  saverToggle.type = "checkbox";
+  saverToggle.checked = Boolean(state.settings.screensaverEnabled);
+  saverToggle.addEventListener("change", () => {
+    state.settings.screensaverEnabled = saverToggle.checked;
+    saveSettings();
+    window.__daemonosScreensaver?.reset();
+  });
+
+  const saverTimeoutLabel = document.createElement("label");
+  saverTimeoutLabel.className = "menu-label";
+  saverTimeoutLabel.textContent = "Timeout (minutes)";
+  const saverTimeout = document.createElement("select");
+  saverTimeout.className = "menu-select";
+  [1, 3, 5, 10, 15].forEach((min) => {
+    const option = document.createElement("option");
+    option.value = String(min);
+    option.textContent = `${min} min`;
+    saverTimeout.appendChild(option);
+  });
+  saverTimeout.value = String(state.settings.screensaverTimeout || 3);
+  saverTimeout.addEventListener("change", () => {
+    state.settings.screensaverTimeout = Number(saverTimeout.value);
+    saveSettings();
+    window.__daemonosScreensaver?.reset();
+  });
+
+  const saverStyleLabel = document.createElement("label");
+  saverStyleLabel.className = "menu-label";
+  saverStyleLabel.textContent = "Style";
+  const saverStyle = document.createElement("select");
+  saverStyle.className = "menu-select";
+  [
+    { id: "stars", label: "Starfield" },
+    { id: "lines", label: "Aurora Lines" },
+    { id: "matrix", label: "Matrix Rain" },
+    { id: "toasters", label: "Flying Toasters" },
+  ].forEach((style) => {
+    const option = document.createElement("option");
+    option.value = style.id;
+    option.textContent = style.label;
+    saverStyle.appendChild(option);
+  });
+  saverStyle.value = state.settings.screensaverStyle || "stars";
+  saverStyle.addEventListener("change", () => {
+    state.settings.screensaverStyle = saverStyle.value;
+    saveSettings();
+    applyScreensaverSettings();
+    window.__daemonosScreensaver?.restartMatrix?.();
+    window.__daemonosScreensaver?.restartToasters?.();
+  });
+
+  saverSection.appendChild(saverTitle);
+  saverSection.appendChild(saverToggleLabel);
+  saverSection.appendChild(saverToggle);
+  saverSection.appendChild(saverTimeoutLabel);
+  saverSection.appendChild(saverTimeout);
+  saverSection.appendChild(saverStyleLabel);
+  saverSection.appendChild(saverStyle);
 
   content.appendChild(desktopSection);
   content.appendChild(dockSection);
+  content.appendChild(saverSection);
 
   createWindow({
     id: "settings",
@@ -994,6 +1727,38 @@ function cascadeWindows() {
     entry.element.style.width = `520px`;
     entry.element.style.height = `360px`;
     persistWindowPosition(entry.element);
+  });
+}
+
+function ensureWindowsInView() {
+  const windowsRoot = document.getElementById("windows");
+  if (!windowsRoot) return;
+  const bounds = windowsRoot.getBoundingClientRect();
+  const menuHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--menu-height")) || 36;
+  const padding = 12;
+  state.windows.forEach((entry) => {
+    const node = entry.element;
+    if (!node || node.classList.contains("minimized")) return;
+    if (node.classList.contains("maximized")) {
+      node.style.left = "0px";
+      node.style.top = "0px";
+      node.style.width = `${bounds.width}px`;
+      node.style.height = `${bounds.height}px`;
+      persistWindowPosition(node);
+      return;
+    }
+    const rect = node.getBoundingClientRect();
+    const width = Math.min(rect.width, bounds.width - padding * 2);
+    const height = Math.min(rect.height, bounds.height - padding * 2);
+    let left = rect.left - bounds.left;
+    let top = rect.top - bounds.top;
+    left = Math.min(Math.max(left, padding), bounds.width - width - padding);
+    top = Math.min(Math.max(top, menuHeight + padding), bounds.height - height - padding);
+    node.style.width = `${width}px`;
+    node.style.height = `${height}px`;
+    node.style.left = `${left}px`;
+    node.style.top = `${top}px`;
+    persistWindowPosition(node);
   });
 }
 
@@ -1184,7 +1949,20 @@ function getWindowIconSvg(windowId, title) {
     if (key.includes("app-calculator")) return "calculator";
     if (key.includes("app-settings")) return "settings";
     if (key.includes("app-diagnostics")) return "diagnostics";
-    if (key.includes("app-pong") || key.includes("app-minesweeper") || key.includes("app-frogger")) return "games";
+    if (key.includes("app-paint")) return "paint";
+    if (key.includes("app-musicplayer")) return "musicplayer";
+    if (key.includes("app-pong")) return "pong";
+    if (key.includes("app-minesweeper")) return "minesweeper";
+    if (key.includes("app-frogger")) return "frogger";
+    if (key.includes("app-pineball")) return "pinball";
+    if (key.includes("app-racecar")) return "racecar";
+    if (key.includes("app-chess")) return "chess";
+    if (key.includes("app-checkers")) return "checkers";
+    if (key.includes("app-connect4")) return "connect4";
+    if (key.includes("app-snake")) return "snake";
+    if (key.includes("app-asteroids")) return "asteroids";
+    if (key.includes("app-spaceinvaders")) return "spaceinvaders";
+    if (key.includes("app-spacefighter")) return "spacefighter";
     return "window";
   })();
 
@@ -1246,6 +2024,129 @@ function getWindowIconSvg(windowId, title) {
       <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
         <rect x="12" y="16" width="40" height="32" rx="8" fill="#b4ffd9"/>
         <path d="M16 34h8l4-8 6 12 4-6h10" stroke="#2f7a5d" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`,
+    paint: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <path d="M20 14c10-8 28 0 28 16 0 6-3 10-9 10h-6l-6 10-8-4 6-10h-2c-6 0-10-4-10-10 0-5 3-9 7-12z" fill="#ffd27a"/>
+        <circle cx="26" cy="24" r="3" fill="#ff7aa2"/>
+        <circle cx="34" cy="22" r="3" fill="#7bd5ff"/>
+        <circle cx="38" cy="30" r="3" fill="#9be58a"/>
+        <path d="M40 44l10 10" stroke="#8a5a14" stroke-width="4" stroke-linecap="round"/>
+      </svg>`,
+    musicplayer: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <defs>
+          <linearGradient id="mpg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#7bd5ff"/>
+            <stop offset="1" stop-color="#ff7aa2"/>
+          </linearGradient>
+        </defs>
+        <rect x="10" y="8" width="44" height="48" rx="12" fill="#1b2a40"/>
+        <rect x="14" y="12" width="36" height="22" rx="8" fill="#0f1622"/>
+        <rect x="18" y="18" width="28" height="4" rx="2" fill="url(#mpg)"/>
+        <rect x="18" y="26" width="20" height="3" rx="1.5" fill="#7bd5ff" opacity="0.7"/>
+        <circle cx="24" cy="44" r="7" fill="#0f1622"/>
+        <circle cx="24" cy="44" r="4" fill="url(#mpg)"/>
+        <circle cx="40" cy="44" r="7" fill="#0f1622"/>
+        <circle cx="40" cy="44" r="4" fill="url(#mpg)"/>
+        <rect x="30" y="38" width="4" height="14" rx="2" fill="#ffd166"/>
+      </svg>`,
+    pong: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <rect x="12" y="14" width="40" height="36" rx="10" fill="#1b2a40"/>
+        <rect x="16" y="24" width="6" height="16" rx="3" fill="#ffb347"/>
+        <rect x="42" y="24" width="6" height="16" rx="3" fill="#7bd5ff"/>
+        <circle cx="32" cy="32" r="4" fill="#ffd166"/>
+        <rect x="30" y="18" width="4" height="28" rx="2" fill="#2e3a4a"/>
+      </svg>`,
+    minesweeper: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <rect x="12" y="12" width="40" height="40" rx="8" fill="#263245"/>
+        <rect x="18" y="18" width="10" height="10" rx="2" fill="#7bd5ff"/>
+        <rect x="36" y="18" width="10" height="10" rx="2" fill="#9be58a"/>
+        <rect x="18" y="36" width="10" height="10" rx="2" fill="#ffd166"/>
+        <circle cx="41" cy="41" r="5" fill="#ff6f91"/>
+        <path d="M41 36v10M36 41h10" stroke="#1b2a40" stroke-width="2" stroke-linecap="round"/>
+      </svg>`,
+    frogger: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <rect x="10" y="10" width="44" height="44" rx="12" fill="#1b2a40"/>
+        <circle cx="32" cy="34" r="12" fill="#6ef0c4"/>
+        <circle cx="22" cy="24" r="5" fill="#6ef0c4"/>
+        <circle cx="42" cy="24" r="5" fill="#6ef0c4"/>
+        <circle cx="22" cy="24" r="2" fill="#1b2a40"/>
+        <circle cx="42" cy="24" r="2" fill="#1b2a40"/>
+        <path d="M24 38c4 4 12 4 16 0" stroke="#1b2a40" stroke-width="3" stroke-linecap="round" fill="none"/>
+      </svg>`,
+    pinball: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <rect x="14" y="6" width="36" height="52" rx="14" fill="#6aa7ff"/>
+        <rect x="18" y="10" width="28" height="44" rx="12" fill="#1b2a40"/>
+        <circle cx="32" cy="26" r="6" fill="#ffd166"/>
+        <circle cx="24" cy="18" r="3" fill="#ff7aa2"/>
+        <circle cx="40" cy="18" r="3" fill="#7bd5ff"/>
+        <path d="M22 46l10-8 10 8" stroke="#ff6f91" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>`,
+    racecar: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <rect x="18" y="8" width="28" height="48" rx="10" fill="#1b2a40"/>
+        <rect x="22" y="12" width="20" height="40" rx="8" fill="#2e3a4a"/>
+        <rect x="24" y="18" width="16" height="10" rx="3" fill="#7bd5ff"/>
+        <rect x="24" y="34" width="16" height="12" rx="3" fill="#ff6f91"/>
+        <rect x="16" y="18" width="4" height="10" rx="2" fill="#c7d4e2"/>
+        <rect x="44" y="18" width="4" height="10" rx="2" fill="#c7d4e2"/>
+        <rect x="16" y="38" width="4" height="10" rx="2" fill="#c7d4e2"/>
+        <rect x="44" y="38" width="4" height="10" rx="2" fill="#c7d4e2"/>
+      </svg>`,
+    chess: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <rect x="14" y="10" width="36" height="44" rx="12" fill="#1b2a40"/>
+        <path d="M24 46h16l-2-10-6-6-6 6z" fill="#ffd166"/>
+        <path d="M28 18h8l-2 6h4l-6 8-6-8h4z" fill="#7bd5ff"/>
+        <rect x="22" y="48" width="20" height="4" rx="2" fill="#2e3a4a"/>
+      </svg>`,
+    checkers: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <rect x="12" y="12" width="40" height="40" rx="10" fill="#1b2a40"/>
+        <circle cx="26" cy="26" r="8" fill="#ff7aa2"/>
+        <circle cx="38" cy="38" r="8" fill="#7bd5ff"/>
+        <circle cx="26" cy="26" r="3" fill="#1b2a40"/>
+        <circle cx="38" cy="38" r="3" fill="#1b2a40"/>
+      </svg>`,
+    connect4: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <rect x="10" y="14" width="44" height="36" rx="8" fill="#1b2a40"/>
+        <circle cx="22" cy="28" r="6" fill="#ff6f91"/>
+        <circle cx="32" cy="28" r="6" fill="#ffd166"/>
+        <circle cx="42" cy="28" r="6" fill="#7bd5ff"/>
+        <circle cx="22" cy="40" r="6" fill="#ffd166"/>
+        <circle cx="32" cy="40" r="6" fill="#ff6f91"/>
+        <circle cx="42" cy="40" r="6" fill="#6ef0c4"/>
+      </svg>`,
+    snake: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <rect x="12" y="12" width="40" height="40" rx="10" fill="#1b2a40"/>
+        <path d="M22 36c0-8 10-8 10-16" stroke="#6ef0c4" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <circle cx="34" cy="20" r="4" fill="#ff6f91"/>
+      </svg>`,
+    asteroids: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <rect x="12" y="12" width="40" height="40" rx="10" fill="#1b2a40"/>
+        <path d="M24 18l8-4 10 6 4 10-6 8-12 2-8-10z" fill="#7bd5ff"/>
+        <path d="M32 20l6 10-6 8-6-8z" fill="#ffd166"/>
+        <circle cx="32" cy="30" r="2" fill="#ff6f91"/>
+      </svg>`,
+    spaceinvaders: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <rect x="12" y="12" width="40" height="40" rx="10" fill="#1b2a40"/>
+        <rect x="22" y="22" width="20" height="12" rx="3" fill="#6ef0c4"/>
+        <rect x="20" y="36" width="24" height="6" rx="3" fill="#7bd5ff"/>
+      </svg>`,
+    spacefighter: `
+      <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">
+        <rect x="12" y="12" width="40" height="40" rx="10" fill="#1b2a40"/>
+        <path d="M32 16l10 20-10 12-10-12z" fill="#ffd166"/>
+        <circle cx="32" cy="34" r="4" fill="#ff6f91"/>
       </svg>`,
     window: `
       <svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true">

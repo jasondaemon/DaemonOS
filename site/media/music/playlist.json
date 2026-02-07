@@ -1,0 +1,27 @@
+[
+  {
+    "title": "DaemonOS Theme",
+    "artist": "Daemon Tracks",
+    "file": "/media/music/daemonostheme.mp3"
+  },
+  {
+    "title": "Adventure",
+    "artist": "Daemon Adventures",
+    "file": "/media/music/daemonadventures.mp3"
+  },
+  {
+    "title": "Isn't This Fun!?",
+    "artist": "Daemon Tracks",
+    "file": "/media/music/isntthisfun.mp3"
+  },
+  {
+    "title": "Midnight Run",
+    "artist": "Daemon Tracks",
+    "file": "/media/music/midnightrun.mp3"
+  },
+  {
+    "title": "The Grid",
+    "artist": "Daemon Tracks",
+    "file": "/media/music/thegrid.mp3"
+  }
+]

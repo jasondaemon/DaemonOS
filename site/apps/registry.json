@@ -1,5 +1,5 @@
 {
-  "version": "2026.02.06.8",
+  "version": "2026.02.07.47",
   "apps": [
     {
       "id": "notepad",
@@ -21,6 +21,13 @@
       "category": "applications",
       "description": "Draw with brushes and color palettes.",
       "module": "/apps/applications/paint/paint.js"
+    },
+    {
+      "id": "musicplayer",
+      "title": "Music Player",
+      "category": "applications",
+      "description": "Winamp-style player with playlists and visualizer.",
+      "module": "/apps/applications/musicplayer/musicplayer.js"
     },
     {
       "id": "diagnostics",
@@ -70,6 +77,62 @@
       "category": "games",
       "description": "A neon pinball arcade with multiball.",
       "module": "/apps/games/pineball/pineball.js"
+    },
+    {
+      "id": "racecar",
+      "title": "Racecar",
+      "category": "games",
+      "description": "Dodge retro traffic on a looping road.",
+      "module": "/apps/games/racecar/racecar.js"
+    },
+    {
+      "id": "connect4",
+      "title": "Connect 4",
+      "category": "games",
+      "description": "Classic drop-and-connect puzzle.",
+      "module": "/apps/games/connect4/connect4.js"
+    },
+    {
+      "id": "snake",
+      "title": "Snake",
+      "category": "games",
+      "description": "Eat, grow, and avoid the walls.",
+      "module": "/apps/games/snake/snake.js"
+    },
+    {
+      "id": "asteroids",
+      "title": "Asteroids",
+      "category": "games",
+      "description": "Vector blasting with asteroid splits.",
+      "module": "/apps/games/asteroids/asteroids.js"
+    },
+    {
+      "id": "spaceinvaders",
+      "title": "Space Invaders",
+      "category": "games",
+      "description": "Defend against the marching invaders.",
+      "module": "/apps/games/spaceinvaders/spaceinvaders.js"
+    },
+    {
+      "id": "spacefighter",
+      "title": "Spacefighter",
+      "category": "games",
+      "description": "Bullet-hell space combat with waves.",
+      "module": "/apps/games/spacefighter/spacefighter.js"
+    },
+    {
+      "id": "chess",
+      "title": "Chess",
+      "category": "games",
+      "description": "Play chess against the computer or a friend.",
+      "module": "/apps/games/chess/chess.js"
+    },
+    {
+      "id": "checkers",
+      "title": "Checkers",
+      "category": "games",
+      "description": "Classic checkers with single or two-player modes.",
+      "module": "/apps/games/checkers/checkers.js"
     }
   ]
 }

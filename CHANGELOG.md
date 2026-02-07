@@ -185,3 +185,250 @@
 - Removed local apps feature and tightened CSP/security headers.
 - Reworked Browser app to render local home pages and open searches in a new tab.
 - Added modular browser pages under `site/apps/browser/pages`.
+
+## 2026-02-06 (Patch 55)
+- Increased Pong speed ramp and enabled progressive difficulty by default.
+- Added multi-level Frogger with faster traffic, varied car shapes/colors, and a frog player.
+
+## 2026-02-06 (Patch 56)
+- Added Frogger scoring and level display; bumped registry version for cache refresh.
+
+## 2026-02-06 (Patch 57)
+- Fixed Frogger level advance glitches and capped speed scaling.
+
+## 2026-02-06 (Patch 58)
+- Added Frogger modal flow with lives, Oops/Next Level/Game Over states, and restart button.
+
+## 2026-02-06 (Patch 59)
+- Added Racecar game with Atari-style graphics, dodge gameplay, and local high score.
+
+## 2026-02-06 (Patch 60)
+- Added custom icons for Pineball and Racecar.
+
+## 2026-02-06 (Patch 61)
+- Updated Minesweeper with size options, shift-click flags, and a game-over modal.
+
+## 2026-02-06 (Patch 62)
+- Added custom icons for Pong, Minesweeper, and Frogger.
+
+## 2026-02-06 (Patch 63)
+- Bumped app registry version to refresh Minesweeper updates.
+
+## 2026-02-06 (Patch 64)
+- Made Minesweeper flags more visible and added a Paint app icon.
+
+## 2026-02-06 (Patch 65)
+- Fixed Frogger modal callbacks so death/level transitions resume correctly.
+
+## 2026-02-06 (Patch 66)
+- Dock category icons now open a tray-style launcher instead of separate windows.
+
+## 2026-02-06 (Patch 67)
+- Added tray icon size control in Settings and responsive tray spacing.
+
+## 2026-02-06 (Patch 68)
+- Reworked Browser toolbar controls, fixed iframe sizing, and enabled popups from the Home page.
+
+## 2026-02-06 (Patch 69)
+- Forced browser/home page refresh and added message-based external link opening.
+
+## 2026-02-06 (Patch 70)
+- Added light/dark/auto appearance settings with sunrise/sunset auto mode.
+
+## 2026-02-06 (Patch 71)
+- Improved light mode contrast for menus and controls.
+
+## 2026-02-06 (Patch 72)
+- Added light-mode paint canvas background and light window headers.
+
+## 2026-02-06 (Patch 73)
+- Updated Browser home bookmarks list and label.
+
+## 2026-02-06 (Patch 74)
+- Bumped registry version to force app updates to load.
+
+## 2026-02-06 (Patch 75)
+- Cache-busted Browser home assets using registry version to ensure updates load.
+
+## 2026-02-06 (Patch 76)
+- Added Chess game with CPU difficulty levels, two-player mode, and optional timers.
+
+## 2026-02-06 (Patch 77)
+- Fixed chess square sizing and move handling.
+
+## 2026-02-06 (Patch 78)
+- Switched chess pieces to SVG with selectable themes.
+
+## 2026-02-06 (Patch 79)
+- Refined chess knight silhouette.
+
+## 2026-02-06 (Patch 80)
+- Added more detailed SVG chess piece designs.
+
+## 2026-02-06 (Patch 81)
+- Tweaked chess knight silhouette for a more horse-like head.
+
+## 2026-02-06 (Patch 82)
+- Replaced chess AI with local Stockfish WASM and chess.js rules engine.
+
+## 2026-02-06 (Patch 83)
+- Tuned chess difficulty levels with Elo caps and move-time limits.
+
+## 2026-02-06 (Patch 84)
+- Made chess Level 1 easier with lower Elo and occasional random moves.
+
+## 2026-02-06 (Patch 85)
+- Added Checkers with CPU and two-player modes plus themed board styling.
+
+## 2026-02-06 (Patch 86)
+- Added optional forced-jump rule toggle and enhanced checker piece styling.
+
+## 2026-02-06 (Patch 87)
+- Refined checkers geometry and added king marker + piece detailing.
+
+## 2026-02-06 (Patch 88)
+- Rebuilt Pineball with Planck.js physics, neon rendering, and cleanup-safe controls.
+
+## 2026-02-06 (Patch 89)
+- Clamp new window sizes/positions to available viewport space.
+
+## 2026-02-07 (Patch 90)
+- Rebuilt Pineball playfield geometry and added letterboxed canvas scaling to prevent warping.
+
+## 2026-02-07 (Patch 91)
+- Added Frogger preferences menu toggle for sound and ribbit move audio.
+
+## 2026-02-07 (Patch 92)
+- Refined Pineball playfield geometry, ball-saver, and resize handling.
+
+## 2026-02-07 (Patch 93)
+- Added Frogger hit/win/game-over sounds and cleaned up input listeners on close.
+
+## 2026-02-07 (Patch 94)
+- Added Minesweeper explosion audio on mine detonation.
+
+## 2026-02-07 (Patch 95)
+- Added a Winamp-inspired Music Player app with playlist and visualizer support.
+
+## 2026-02-07 (Patch 96)
+- Added multiple visualizer modes with a selector in the Music Player.
+
+## 2026-02-07 (Patch 97)
+- Expanded Music Player visualizer styles and removed the radial mode.
+
+## 2026-02-07 (Patch 98)
+- Added a global menu bar volume control that applies across apps.
+
+## 2026-02-07 (Patch 99)
+- Switched the global volume control to a vertical slider aligned next to the clock.
+
+## 2026-02-07 (Patch 100)
+- Fixed menu-right alignment and applied global volume to non-DOM audio instances.
+
+## 2026-02-07 (Patch 101)
+- Aligned volume icon next to the clock and anchored the volume menu under it.
+
+## 2026-02-07 (Patch 102)
+- Added a menu bar fullscreen toggle icon using the browser Fullscreen API.
+
+## 2026-02-07 (Patch 103)
+- Repositioned open windows back into view when exiting fullscreen.
+
+## 2026-02-07 (Patch 104)
+- Added a simple DaemonOS favicon.
+
+## 2026-02-07 (Patch 105)
+- Updated vertical range styling to avoid deprecated appearance usage.
+
+## 2026-02-07 (Patch 106)
+- Refreshed the Music Player icon styling.
+
+## 2026-02-07 (Patch 107)
+- Wired the Music Player icon to show in file browser and trays.
+
+## 2026-02-07 (Patch 108)
+- Expanded Diagnostics with real device/network metrics and async storage/battery info.
+
+## 2026-02-07 (Patch 109)
+- Added screensaver settings, menu bar toggle, and animated overlay styles.
+
+## 2026-02-07 (Patch 110)
+- Improved the Matrix screensaver visuals with layered rain and glow.
+
+## 2026-02-07 (Patch 111)
+- Added a true Matrix code rain canvas animation for the screensaver.
+
+## 2026-02-07 (Patch 112)
+- Expanded Matrix screensaver glyph set with Katakana characters.
+
+## 2026-02-07 (Patch 113)
+- Increased Matrix screensaver glyph size and column density.
+
+## 2026-02-07 (Patch 114)
+- Doubled Matrix screensaver column density.
+
+## 2026-02-07 (Patch 115)
+- Added a Flying Toasters screensaver style with canvas animation.
+
+## 2026-02-07 (Patch 116)
+- Added Connect 4, Snake, Asteroids, Space Invaders, and Spacefighter games plus an Arcade launcher.
+
+## 2026-02-07 (Patch 117)
+- Updated Snake to wrap around edges instead of dying on walls.
+
+## 2026-02-07 (Patch 118)
+- Asteroids now split into two smaller rocks traveling along shot direction; stabilized asteroid outlines.
+
+## 2026-02-07 (Patch 119)
+- Space Invaders now includes player lives, respawn explosion, and smooth movement.
+
+## 2026-02-07 (Patch 120)
+- Added pew sound effect on Space Invaders shots.
+
+## 2026-02-07 (Patch 121)
+- Removed the Arcade app entry and module.
+
+## 2026-02-07 (Patch 122)
+- Added Asteroids sound effects for firing, hits, deaths, and level clears.
+
+## 2026-02-07 (Patch 123)
+- Fixed Asteroids level resets and disabled shooting after game over.
+
+## 2026-02-07 (Patch 124)
+- Improved Minesweeper light-mode contrast for revealed tiles.
+
+## 2026-02-07 (Patch 125)
+- Added Asteroids game over sound.
+
+## 2026-02-07 (Patch 126)
+- Added drop animation for Connect 4 pieces.
+
+## 2026-02-07 (Patch 127)
+- Rendered Connect 4 falling pieces behind the board cutouts.
+
+## 2026-02-07 (Patch 128)
+- Clipped Connect 4 falling pieces to the board holes for continuous visibility.
+
+## 2026-02-07 (Patch 129)
+- Fixed Connect 4 board masking so falling pieces remain visible through holes.
+
+## 2026-02-07 (Patch 130)
+- Restored Connect 4 board styling and corrected masking for falling pieces.
+
+## 2026-02-07 (Patch 131)
+- Fixed Checkers CPU to continue multi-jump captures without hanging.
+
+## 2026-02-07 (Patch 132)
+- Fixed Space Invaders wave edge detection to avoid sudden drops.
+
+## 2026-02-07 (Patch 131)
+- Slowed Connect 4 CPU response, made easy mode easier, and boosted win glow.
+
+## 2026-02-07 (Patch 132)
+- Set Connect 4 default mode to VS Computer.
+
+## 2026-02-07 (Patch 130)
+- Updated the Asteroids icon to include the player ship overlay.
+
+## 2026-02-07 (Patch 129)
+- Updated Frogger player sprite to match the dock icon style.

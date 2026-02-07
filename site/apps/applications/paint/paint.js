@@ -79,7 +79,8 @@ export function createApp() {
   canvas.width = 720;
   canvas.height = 420;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#0c1117";
+  const lightMode = document.documentElement.dataset.theme === "light";
+  ctx.fillStyle = lightMode ? "#ffffff" : "#0c1117";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   let drawing = false;
@@ -102,7 +103,7 @@ export function createApp() {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     getBrush();
-    ctx.strokeStyle = erasing ? "#0c1117" : currentColor;
+    ctx.strokeStyle = erasing ? (lightMode ? "#ffffff" : "#0c1117") : currentColor;
     ctx.lineTo(x, y);
     ctx.stroke();
     ctx.beginPath();

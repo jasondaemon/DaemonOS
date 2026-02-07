@@ -21,7 +21,7 @@ export function createApp(osAPI) {
   let playerScore = 0;
   let cpuScore = 0;
   let state = "start";
-  let progressive = false;
+  let progressive = true;
   let lastSpeedHit = 0;
 
   const storageKey = "pong_highscores";
@@ -51,8 +51,8 @@ export function createApp(osAPI) {
   const resetBall = () => {
     ball.x = canvas.width / 2;
     ball.y = canvas.height / 2;
-    ball.vx = Math.random() > 0.5 ? 3 : -3;
-    ball.vy = Math.random() > 0.5 ? 2 : -2;
+    ball.vx = Math.random() > 0.5 ? 4.2 : -4.2;
+    ball.vy = Math.random() > 0.5 ? 2.8 : -2.8;
     hits = 0;
     lastSpeedHit = 0;
   };
@@ -150,9 +150,9 @@ export function createApp(osAPI) {
       paddleRight.y = canvas.height / 2 - paddleRight.h / 2;
     }
 
-    if (progressive && hits > 0 && hits % 3 === 0 && lastSpeedHit !== hits) {
-      ball.vx *= 1.02;
-      ball.vy *= 1.02;
+    if (progressive && hits > 0 && hits % 2 === 0 && lastSpeedHit !== hits) {
+      ball.vx *= 1.06;
+      ball.vy *= 1.06;
       lastSpeedHit = hits;
     }
 

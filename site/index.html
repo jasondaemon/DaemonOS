@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'" />
   <title>DaemonOS</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -17,7 +18,22 @@
       </div>
       <div class="menu-center" aria-hidden="true"></div>
       <div class="menu-right" role="menu">
+        <button class="menu-item menu-button-ghost menu-screensaver" id="menu-screensaver" aria-label="Start Screensaver">
+          <span aria-hidden="true">🖥️</span>
+        </button>
+        <button class="menu-item menu-button-ghost menu-fullscreen" id="menu-fullscreen" aria-label="Enter Fullscreen">
+          <span id="menu-fullscreen-icon" aria-hidden="true">⤢</span>
+        </button>
+        <button class="menu-item menu-button-ghost menu-volume" id="menu-volume" aria-haspopup="true" aria-expanded="false" aria-label="Volume">
+          <span id="menu-volume-icon" aria-hidden="true">🔊</span>
+        </button>
         <div class="menu-time" id="menu-time" aria-live="polite"></div>
+      </div>
+      <div class="menu-dropdown volume-menu" id="volume-menu" role="menu" aria-label="Volume">
+        <div class="menu-title">Volume</div>
+        <div class="volume-slider-wrap">
+          <input type="range" min="0" max="100" value="80" id="menu-volume-range" />
+        </div>
       </div>
       <div class="menu-dropdown system-menu" id="banana-menu" role="menu" aria-label="System Menu">
         <button id="about-daemonos">About DaemonOS</button>
@@ -42,6 +58,15 @@
   </div>
 
   <div class="context-menu" id="context-menu" role="menu" aria-hidden="true"></div>
+  <div class="screensaver" id="screensaver" aria-hidden="true">
+    <div class="screensaver-layer screensaver-stars"></div>
+    <div class="screensaver-layer screensaver-lines"></div>
+    <div class="screensaver-layer screensaver-matrix"></div>
+    <div class="screensaver-layer screensaver-matrix-glow"></div>
+    <canvas class="screensaver-matrix-canvas" id="screensaver-matrix-canvas"></canvas>
+    <canvas class="screensaver-toaster-canvas" id="screensaver-toaster-canvas"></canvas>
+    <div class="screensaver-label">DaemonOS Screensaver</div>
+  </div>
 
   <script src="os.js" type="module" defer></script>
 </body>

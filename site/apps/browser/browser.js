@@ -4,54 +4,96 @@ export function createApp() {
   content.style.display = "flex";
   content.style.flexDirection = "column";
   content.style.gap = "10px";
+  content.style.minHeight = "0";
 
   const toolbar = document.createElement("div");
   toolbar.className = "browser-toolbar";
 
+  const backButton = document.createElement("button");
+  backButton.className = "browser-button";
+  backButton.textContent = "←";
+  backButton.title = "Back";
+
+  const forwardButton = document.createElement("button");
+  forwardButton.className = "browser-button";
+  forwardButton.textContent = "→";
+  forwardButton.title = "Forward";
+
+  const refreshButton = document.createElement("button");
+  refreshButton.className = "browser-button";
+  refreshButton.textContent = "⟳";
+  refreshButton.title = "Refresh";
+
   const homeButton = document.createElement("button");
-  homeButton.className = "menu-button";
-  homeButton.textContent = "Home";
+  homeButton.className = "browser-button";
+  homeButton.textContent = "⌂";
+  homeButton.title = "Home";
 
-  const input = document.createElement("input");
-  input.type = "text";
-  input.placeholder = "Search DuckDuckGo";
-
-  const goButton = document.createElement("button");
-  goButton.className = "menu-button";
-  goButton.textContent = "Search";
+  const address = document.createElement("input");
+  address.type = "text";
+  address.className = "browser-address";
+  address.value = "daemonos://home";
+  address.readOnly = true;
 
   const frame = document.createElement("iframe");
   frame.className = "browser-frame";
   frame.title = "Browser Home";
-  frame.setAttribute("sandbox", "allow-scripts allow-forms");
+  frame.setAttribute("sandbox", "allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox");
 
   const loadHome = () => {
-    frame.src = "/apps/browser/pages/home.html";
+    const version = window.daemonosRegistryVersion || "";
+    const suffix = version ? `?v=${encodeURIComponent(version)}` : "";
+    frame.src = `/apps/browser/pages/home.html${suffix}`;
+    address.value = "daemonos://home";
   };
 
-  const openSearch = () => {
-    const query = input.value.trim();
-    if (!query) return;
-    const url = `https://duckduckgo.com/?q=${encodeURIComponent(query)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+  const navigateBack = () => {
+    try {
+      frame.contentWindow?.history?.back();
+    } catch {
+      // ignore
+    }
+  };
+
+  const navigateForward = () => {
+    try {
+      frame.contentWindow?.history?.forward();
+    } catch {
+      // ignore
+    }
+  };
+
+  const refresh = () => {
+    try {
+      frame.contentWindow?.location?.reload();
+    } catch {
+      frame.src = frame.src;
+    }
   };
 
   homeButton.addEventListener("click", loadHome);
-  goButton.addEventListener("click", openSearch);
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      openSearch();
-    }
-  });
+  backButton.addEventListener("click", navigateBack);
+  forwardButton.addEventListener("click", navigateForward);
+  refreshButton.addEventListener("click", refresh);
 
+  toolbar.appendChild(backButton);
+  toolbar.appendChild(forwardButton);
+  toolbar.appendChild(refreshButton);
   toolbar.appendChild(homeButton);
-  toolbar.appendChild(input);
-  toolbar.appendChild(goButton);
+  toolbar.appendChild(address);
 
   content.appendChild(toolbar);
   content.appendChild(frame);
 
   loadHome();
+
+  const handleMessage = (event) => {
+    if (!event?.data || typeof event.data !== "object") return;
+    if (event.data.type === "openExternal" && typeof event.data.url === "string") {
+      window.open(event.data.url, "_blank", "noopener,noreferrer");
+    }
+  };
+  window.addEventListener("message", handleMessage);
 
   return {
     title: "Browser",

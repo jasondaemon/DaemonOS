@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="/apps/browser/pages/home.css" />
+  <link id="home-css" rel="stylesheet" href="/apps/browser/pages/home.css" />
   <title>DaemonOS Home</title>
 </head>
 <body>
@@ -17,17 +17,28 @@
     </section>
 
     <section class="sites">
-      <h2>My Sites</h2>
+      <h2>Bookmarks</h2>
       <ol>
-        <li><a href="https://jasondaemon.net" target="_blank" rel="noopener noreferrer">https://jasondaemon.net</a></li>
-        <li><a href="https://sonustemper.jasondaemon.net" target="_blank" rel="noopener noreferrer">https://sonustemper.jasondaemon.net</a></li>
-        <li><a href="https://daemonadventures.net" target="_blank" rel="noopener noreferrer">https://daemonadventures.net</a></li>
-        <li><a href="https://cms.jasodnaemon.net" target="_blank" rel="noopener noreferrer">https://cms.jasodnaemon.net</a></li>
-        <li><a href="https://sempervigil.example" target="_blank" rel="noopener noreferrer">https://sempervigil.example</a></li>
-        <li><a href="https://forgejo.example" target="_blank" rel="noopener noreferrer">https://forgejo.example</a></li>
+        <li><a href="https://www.jasondaemon.net" target="_blank" rel="noopener noreferrer">https://www.jasondaemon.net</a></li>
+        <li><a href="https://www.daemonadventures.net" target="_blank" rel="noopener noreferrer">https://www.daemonadventures.net</a></li>
+        <li><a href="https://www.cybernews.jasondaemon.net" target="_blank" rel="noopener noreferrer">https://www.cybernews.jasondaemon.net</a></li>
+        <li><a href="https://www.fragmentsofeternity.net" target="_blank" rel="noopener noreferrer">https://www.fragmentsofeternity.net</a></li>
+        <li><a href="https://www.redclayconfession.com" target="_blank" rel="noopener noreferrer">https://www.redclayconfession.com</a></li>
       </ol>
     </section>
   </main>
-  <script src="/apps/browser/pages/home.js"></script>
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      const version = params.get("v");
+      if (version) {
+        const css = document.getElementById("home-css");
+        if (css) css.href = `/apps/browser/pages/home.css?v=${encodeURIComponent(version)}`;
+      }
+      const script = document.createElement("script");
+      script.src = `/apps/browser/pages/home.js${version ? `?v=${encodeURIComponent(version)}` : ""}`;
+      document.body.appendChild(script);
+    })();
+  </script>
 </body>
 </html>
